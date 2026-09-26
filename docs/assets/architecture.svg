@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+<title id="title">Daltix project architecture: Source to Raw to Silver to Gold</title>
+<desc id="desc">Explicit read-only PostgreSQL extraction creates seven immutable Raw Parquet files. The official Silver pipeline builds seven validated silver-prefixed tables with contracts and a manifest. Gold dimensional marts are the next phase.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9b94b2"/></marker>
+</defs>
+<rect width="1200" height="320" rx="16" fill="#ffffff"/>
+<g font-family="Segoe UI, Arial, sans-serif">
+<text x="28" y="34" font-size="14" font-weight="700" letter-spacing="2" fill="#625b74">THE DATA JOURNEY</text>
+<g stroke="#9b94b2" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+<path d="M 278 145 L 322 145"/><path d="M 580 145 L 624 145"/>
+<path d="M 882 145 L 926 145" stroke-dasharray="5 5"/>
+</g>
+<rect x="28" y="64" width="250" height="162" rx="12" fill="#f5f4f8" stroke="#d7d2e1"/>
+<rect x="330" y="64" width="250" height="162" rx="12" fill="#eefaf7" stroke="#85d4c7"/>
+<rect x="632" y="64" width="250" height="162" rx="12" fill="#f2effa" stroke="#a597ca"/>
+<rect x="934" y="64" width="238" height="162" rx="12" fill="#fff9ed" stroke="#e3bd67" stroke-dasharray="5 4"/>
+<text x="50" y="94" font-size="12" font-weight="700" letter-spacing="1.5" fill="#625b74">AUTHORIZED SOURCE</text>
+<text x="50" y="132" font-size="27" font-weight="650" fill="#302644">PostgreSQL</text>
+<text x="50" y="163" font-size="16" fill="#625b74">Read-only access</text>
+<text x="50" y="204" font-size="15" fill="#625b74">Explicit extraction</text>
+<text x="352" y="94" font-size="12" font-weight="700" letter-spacing="1.5" fill="#087f79">IMMUTABLE SNAPSHOT</text>
+<text x="352" y="132" font-size="27" font-weight="650" fill="#087f79">Raw</text>
+<text x="352" y="163" font-size="16" fill="#366860">7 source Parquet files</text>
+<text x="352" y="204" font-size="15" fill="#366860">Original values + manifest</text>
+<text x="654" y="94" font-size="12" font-weight="700" letter-spacing="1.5" fill="#55438b">VALIDATED CHECKPOINT</text>
+<text x="654" y="132" font-size="27" font-weight="650" fill="#55438b">Silver</text>
+<text x="654" y="163" font-size="16" fill="#625b74">7 silver_*.parquet files</text>
+<text x="654" y="204" font-size="15" fill="#625b74">Contracts + provenance</text>
+<text x="956" y="94" font-size="12" font-weight="700" letter-spacing="1.5" fill="#967013">NEXT PHASE</text>
+<text x="956" y="132" font-size="27" font-weight="650" fill="#967013">Gold</text>
+<text x="956" y="163" font-size="16" fill="#7b6c48">Dimensional marts</text>
+<text x="956" y="204" font-size="15" fill="#7b6c48">Business measures</text>
+<rect x="28" y="249" width="1144" height="44" rx="8" fill="#f5f4f8"/>
+<text x="50" y="277" font-size="15" fill="#55438b"><tspan font-weight="700">RAW → SILVER</tspan><tspan dx="20" font-family="Consolas, monospace">run_silver_pipeline()</tspan><tspan dx="22" fill="#625b74">DuckDB + Polars · table and cross-table contracts</tspan></text>
+</g></svg>

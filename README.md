@@ -1,227 +1,230 @@
-# Daltix Data & Insights Case
+<p align="center">
+  <img src="docs/assets/daltix-logo.png" alt="Daltix — Retail data that works" width="440">
+</p>
 
-> Understand the source, test the assumptions, then build a defensible retail analysis.
+<h1 align="center">Data &amp; Insights · Analytics Engineering Case</h1>
 
-**IN PROGRESS · CHECKPOINT 1**
+<p align="center"><strong>Understand manually. Automate deliberately. Preserve uncertainty.</strong></p>
 
-Source discovery, initial profiling and weekly-price grain/coverage assessment.
+<p align="center">
+  <a href="#current-results">Results</a> ·
+  <a href="#architecture-and-responsibilities">Architecture</a> ·
+  <a href="#silver-decisions">Decisions</a> ·
+  <a href="#run-locally">Run locally</a> ·
+  <a href="#next-phase">Next phase</a>
+</p>
 
-[Status](#checkpoint-status) · [Architecture](#architecture) · [Findings](#initial-profiling-conclusions) · [Weekly assessment](#evidence-from-the-saved-weekly-price-assessment) · [Run tomorrow](#run-tomorrow) · [Validation](#validation-and-limitations)
+---
 
-## Checkpoint status
+## Project overview
 
-This is the first development checkpoint, not the final business-case submission. The analytical questions, cleaning rules and final model remain under investigation.
+This business case builds a reproducible analytical foundation for retail price data. Seven source tables covering prices, products, locations and nutritionals are assessed and transformed into a validated Silver layer, ready to support subsequent dimensional modelling and business analysis.
 
-| Completed | Next |
+The central challenge is semantic as well as technical: repeated weekly observations, incomplete reference coverage and conflicting nutritional versions cannot be solved by enforcing uniqueness alone. The implementation distinguishes verified facts, adopted rules and unresolved exceptions, preserving the evidence needed for downstream decisions.
+
+**Current delivery: checkpoint 2 — source discovery and productionized Silver.** Gold modelling and business measures remain the next phase.
+
+| Discovery | Silver | Gold |
+| :--- | :--- | :--- |
+| **Complete** · 7 source assessments and 5 relationship checks | **Validated** · 7 published datasets and explicit contracts | **Next** · dimensional modelling and business measures |
+
+| Weekly price observations in Silver | Exact duplicates removed | Offline tests passing | Notebook 02 execution |
+| :---: | :---: | :---: | :---: |
+| **19,075,099** | **142,972** | **18** | **60 / 60 code cells** |
+
+These figures describe the reviewed local snapshot. Known data exceptions remain visible; passing contracts establish the stated structural guarantees.
+
+## Deliverables
+
+| Deliverable | Evidence / implementation |
 | --- | --- |
-| Local environment and seven-table source discovery | Promotion semantics and price validity |
-| Raw extraction and automated profiling | Product/location keys and join coverage |
-| Weekly grain and aggregate temporal assessment | Resolve repeated observations with evidence |
-| Documented findings and reproducible local execution | Clean data, analytical model and business insights |
-| Protected extraction, local manifest and focused tests | Final presentation and optional BI |
+| Source assessment | [01 · Source discovery](notebooks/01_source_discovery.ipynb): grain, quality, temporal coverage and relationship evidence |
+| Silver decision record | [02 · Silver pipeline](notebooks/02_silver_pipeline.ipynb): treatments, contracts, published metrics and interpretation |
+| Reproducible execution | [Official pipeline](src/daltix_case/pipelines/silver_pipeline.py): all seven tables, validation and controlled publication |
+| Verification | [Offline tests](tests/), full-snapshot checks and a fresh execution of Notebook 02 |
 
-**Tomorrow's starting point:** section 7 of [the discovery notebook](notebooks/01_source_discovery.ipynb), then develop **6.3 Promotion Logic**. Do not interpret a filled promotional-price field as proof of a promotion.
+**Execution model:** pipeline → validated Silver files → Notebook 02. The notebook's default `RUN_PIPELINE = False` inspects an existing publication; missing or stale artifacts fail validation. [Reproduction instructions](#run-locally) describe the sequence.
 
-## Architecture
+## Architecture and responsibilities
 
-An ELT approach was selected: extract PostgreSQL source tables, load untransformed local Parquet and perform assessment and later transformations locally. It reduces repeated work on the supplied source and preserves a raw baseline for revisiting decisions.
+![Source to Raw to validated Silver, with Gold as the next phase](docs/assets/architecture.svg)
 
-```mermaid
-flowchart LR
-    A[PostgreSQL source] -->|Explicit extraction| B[Raw Parquet and manifest]
-    B --> C[Local profiling and semantic assessment]
-    C -. Planned .-> D[Clean validated data]
-    D -. Planned .-> E[Analytical marts]
-    E -. Planned .-> F[Insights and presentation]
-```
+**Storage:** `data/raw/` → `data/clean/` → `data/marts/`. Each completed local layer carries its own manifest; Gold is not yet implemented.
 
 | Component | Responsibility |
 | --- | --- |
-| Python 3.14, uv, `.venv`, `uv.lock` | Isolated dependencies and reproducible resolution |
-| Jupyter and Markdown | Questions, SQL, results and interpretations |
-| Psycopg | Optional lightweight metadata discovery with read-only transactions |
-| DuckDB | Optional source export and local analytical SQL |
-| Polars | Display and inspection of analytical results |
-| Parquet with ZSTD | Typed, compressed raw files |
-| PyArrow and SHA-256 | Local file metadata and integrity manifest |
-| Ruff and pytest | Python hygiene and focused source/snapshot checks |
+| [Notebook 01](notebooks/01_source_discovery.ipynb) | Manual discovery, exact checks, relationships and the proposals made at that stage |
+| [Notebook 02](notebooks/02_silver_pipeline.ipynb) | Decisions, read-only evidence and interpretation; optionally calls the official pipeline |
+| [`silver/*`](src/daltix_case/silver/) | Single implementation of each table's cleaning and enrichment |
+| [`quality/*`](src/daltix_case/quality/) | Shared validation helpers and cross-table contracts |
+| [`silver_pipeline.py`](src/daltix_case/pipelines/silver_pipeline.py) | Dependency ordering, publication, timing and manifest |
+| [`source_io.py`](src/daltix_case/source_io.py) | Guarded extraction, connections and Raw-snapshot integrity |
 
-The environment includes additional ML and visualization libraries, but their presence does not imply that models or dashboards have been built. `raw`, `clean` and `marts` correspond conceptually to Bronze, Silver and Gold; only raw ingestion and assessment are implemented so far.
+The table functions accept input/output paths; the orchestrator owns publication. Transformation logic is centralized in `src`, and both notebooks retain their distinct analytical responsibilities.
 
-## Repository layout
+## Current results
 
-```text
-notebooks/01_source_discovery.ipynb  Exploration, analytical SQL and saved results
-src/daltix_case/source_io.py        Source connections, protected export and manifest checks
-src/daltix_case/__init__.py         Original package entry-point scaffold
-tests/test_source_io.py             Offline tests of snapshot and connection behavior
-.env.example                       Empty credential template
-.gitignore                         Excludes credentials, raw data and generated files
-.vscode/settings.json              Portable formatting settings
-pyproject.toml / uv.lock            Project dependencies and locked resolution
-data/raw/                          Local Parquet and manifest; excluded from Git
-data/clean/ / data/marts/            Reserved for later stages; excluded from Git
-```
+Published Parquet files use `silver_<dataset>.parquet`; Raw files keep their source names. The pipeline, relationship checks and notebook share this naming convention.
 
-The source-I/O helper handles execution and file protection. The notebook retains the analytical SQL: no deduplication, price-selection rule, join or promotion metric has been added by the checkpoint cleanup.
+These counts describe the reviewed Silver snapshot. The machine-readable source for a completed run is `data/clean/manifest.json`.
 
-## Source inventory
-
-| Table | Role under assessment |
-| --- | --- |
-| `weekly_prices` | Weekly product/location price observations |
-| `weekly_prices_products` | Product attributes for the weekly dataset |
-| `weekly_prices_locations` | Location attributes for the weekly dataset |
-| `prices` | Non-weekly price observations |
-| `products` | Non-weekly product attributes |
-| `locations` | Non-weekly location attributes |
-| `nutritionals` | Nutritional records and serialized nutritional values |
-
-PostgreSQL catalog row counts are estimates. They must not be treated as exact counts or substituted for counts from the extracted data. DuckDB `SUMMARIZE` provides initial types, null percentages, ranges and distribution estimates; it does not validate business semantics or relational integrity.
-
-## Initial profiling conclusions
-
-All seven datasets were extracted and profiled. Row counts below were also checked directly against the local Parquet files during the documentation review. Null percentages come from the saved notebook profiles and are rounded to two decimal places.
-
-| Dataset | Local rows | Findings and implications |
+| Silver file | Rows | Main outcome |
 | --- | ---: | --- |
-| `weekly_prices` | 19,218,071 | Two-year weekly history; primary analytical candidate. Six columns show 0.00% SQL nulls in the saved profile. Grain exceptions require investigation. |
-| `weekly_prices_products` | 114,517 | `brand` 5.77% null; `categories` 20.34% null. Empty text also appears, so SQL nulls alone do not measure completeness. |
-| `weekly_prices_locations` | 1,230 | `shop_type` 35.45% null; coordinates 0.49% null; postcode 1.87% null. Location meanings and joins remain unvalidated. |
-| `prices` | 1,198,547 | Historical sample, 2020-02-25 to 2021-02-25. `promo_price` is null in 99.44% of observations; this is not a percentage of products or a confirmed no-promotion rate. `unit_std` and `currency` are reported as `su` and `eur`. |
-| `products` | 32,826 | Nulls: name 0.12%, brand 2.25%, description 10.34%, categories 1.51%. Empty strings and `#N/A` require semantic assessment. |
-| `locations` | 1,638 | `type` is entirely null. IDs are not globally unique; see the exact checks below. Missing coordinates for online records are a hypothesis to investigate, not grounds for automatic deletion. |
-| `nutritionals` | 1,096,542 | Dated records from 2020-11-27 to 2021-02-24. Structured nutritional text requires parsing and content validation; 0.00% SQL nulls does not establish complete nutrient information. |
+| `silver_products.parquet` | 32,826 | Unique source IDs; missing name 42, brand 1,279, description 8,013, categories 497 |
+| `silver_locations.parquet` | 1,638 | Two rows share one business key; 40 missing postcodes, 18 missing coordinate pairs |
+| `silver_prices.parquet` | 1,198,547 | 1,191,783 null promo prices; 6,764 promotions; zero unexpected populated promo values |
+| `silver_nutritionals.parquet` | 9,467,978 | 54,155 products, 14 nutrient names; 100 source conflicts canonicalized; zero non-numeric values |
+| `silver_weekly_products.parquet` | 114,517 | Zero enriched attributes; missing name 9, brand 9,589, description 14,562, categories 23,294 |
+| `silver_weekly_locations.parquet` | 1,230 | Zero enriched postcodes/coordinates; 23 missing postcodes, six missing coordinate pairs |
+| `silver_weekly_prices.parquet` | 19,075,099 | 142,972 exact duplicates removed; 751,824 ambiguous rows in 375,912 grains |
 
-### Exact counts versus approximate profiles
+Weekly Silver prices contain **1,636,220 promotion rows** and **10,916 promo-above-price rows**. All table and cross-table contracts pass. Weekly product coverage is **96.06%**, with **751,710 unmatched price rows**; weekly location coverage is complete. **15,696** weekly products overlap with nutritionals.
 
-`SUMMARIZE.approx_unique` is exploratory. The early profile estimated 93 weeks and 108,487 product IDs in `weekly_prices`; the saved exact queries returned **104 weeks and 102,069 IDs**. The exact results supersede those approximations. Neither similar distinct counts nor the same number of retailers proves that the actual sets overlap or that a join is safe.
+### How the weekly observations were treated
 
-The original profiling discussion reported retailer cardinalities of 4 for each weekly table, 5 for `prices`, 7 for `products`, 10 for `locations` and 6 for `nutritionals`. These came from the approximate profiling output; shared retailer sets and exact join coverage remain to be checked.
+| Step | Observations | Meaning |
+| --- | ---: | --- |
+| Raw snapshot | 19,218,071 | Original price observations, including repeated records |
+| Exact duplicates removed | −142,972 | Only identical six-field observations were collapsed |
+| Published Silver | **19,075,099** | Retained observations after exact deduplication |
+| Ambiguous observations within Silver | **751,824** | A subset of Silver, spanning 375,912 weekly grains; alternatives remain available |
 
-### Earlier location investigation recovered from the planning discussion
+**Retained rows = 19,218,071 − 142,972.** Ambiguous observations are included in the retained total and still require an explicit Gold treatment.
 
-The discussion recorded 1,638 rows, 1,256 distinct `id` values, 1,637 distinct `(shop, id)` combinations and 1,638 distinct full rows. These four counts were rechecked against the local `locations.parquet` and agree.
+## Silver decisions
 
-Therefore, there are 382 occurrences beyond one row per `id`, but **no exact duplicate rows**. The composite `(shop, id)` still has one repeated combination. The earlier discussion identified different geographic attributes for that pair. Its business meaning remains unresolved; generating a surrogate key would distinguish records technically without resolving the semantic ambiguity.
-
-### Why weekly is the main candidate
-
-The planning discussion records the assignment's description of `weekly_prices` as a two-year, non-sampled dataset and its warning that sampling can impair joins between other tables. This motivates a focused weekly assessment; it does not prove complete coverage for every retailer, product or location.
-
-The non-weekly tables remain available for separate analysis, comparison and spot checks. Their inclusion in the final model depends on demonstrated coverage and business value. They are not discarded, and they do not have to fit the same fact table.
-
-### Nutritional enrichment and business limits
-
-The preferred hypothesis discussed was to enrich product attributes with nutritionals where useful, rather than create a nutritional dimension solely because a separate source table exists. Repeated records and dates must be resolved before joining. A collection date is not necessarily an effective-from date; attaching the latest 2021 record to a 2019 price could introduce temporal leakage.
-
-Possible future questions concern price position, price changes, assortment and promotional behavior. Cross-retailer comparisons need comparable products and units: `daltix_id` is a source product identifier in retailer/country context, not a proven universal product ID. Raw retailer mean prices can reflect different product mixes.
-
-No sales, quantities sold, margins or shopper-response data have been established in the seven datasets. The project should not claim sales uplift, demand elasticity or promotion effectiveness from price observations alone. No business insight or predictive model has been finalized.
-
-## Evidence from the saved weekly-price assessment
-
-The saved grain query reports 19,218,071 rows, 102,069 distinct product IDs, 375,742 product/retailer/location combinations, and 18,699,187 distinct candidate keys.
-
-The candidate grain is `daltix_id + shop + location + week`. It is a working hypothesis, not a validated unique key. Repeated keys occur in three weeks:
-
-| Week | Repeated key combinations | One distinct price pair | Multiple distinct price pairs |
-| --- | ---: | ---: | ---: |
-| 2019-05-27 | 126,619 | 39,196 | 87,423 |
-| 2019-12-30 | 188,398 | 47,751 | 140,647 |
-| 2020-12-28 | 203,867 | 56,025 | 147,842 |
-
-The three weeks contain **518,884 repeated key combinations**: **142,972** with identical price pairs and **375,912** with different price pairs. The difference between total rows and distinct candidate keys is also 518,884. Together, the saved counts imply that each repeated group contains exactly two rows: 1,037,768 affected rows, approximately 5.40% of the dataset. The excess above one row per key is approximately 2.70%.
-
-These counts represent key combinations, not excess rows in general; the two happen to match here because every repeated group has two rows. Equal-price duplicates and conflicting-price observations require separate treatment. No arbitrary first/last, averaging, or deduplication rule has been applied.
-
-The saved temporal query reports a first week of 2019-01-07, a last week of 2020-12-28, 104 distinct observed weeks and 104 expected weekly periods. During this documentation review, a separate read-only local query confirmed those values, zero null weeks and zero dates outside Monday. Together, these establish no missing weekly dates across the overall range. Completeness at product/location level remains untested. This additional check has not been inserted into the notebook.
-
-Saved profiling output reports no nulls in the six `weekly_prices` columns and price ranges of approximately 0.009 to 1,538.9 for both price fields. These are profiling observations, not proof that every value is valid. Promotion meaning, units, outliers and appropriate thresholds remain unresolved.
-
-## Provisional model and data-quality strategy
-
-```text
-                    dim_product
-                         |
-dim_date ------ fact_weekly_prices ------ dim_location
-                         |
-                      dim_shop
-```
-
-This is a candidate design, not an implemented schema. A separate non-weekly fact could be considered later. Shared dimensions would require semantic compatibility; a galaxy/fact-constellation model is an option, not a requirement.
-
-**Grain** describes what one observation represents. **Key uniqueness** tests whether columns distinguish records. Passing a uniqueness check alone does not establish business meaning, key stability or minimality. In the saved weekly counts, `daltix_id` and `(daltix_id, shop)` both have 102,069 values, so `shop` adds no distinct combinations in this snapshot; that does not establish universal ID behavior across all sources.
-
-A weekly price fact could reference weekly product and location dimensions, but dimension uniqueness and join cardinality have not yet been established. Do not assume weekly and non-weekly identifiers are interchangeable.
-
-Before publishing a clean fact table:
-
-1. Confirm candidate keys and investigate the three affected weeks.
-2. Separate identical duplicates from conflicting prices and document evidence for each resolution rule.
-3. Preserve the aggregate calendar check and validate coverage per product/location series.
-4. Establish the semantics of `price` and `price_promo`, including equality, nulls and discounts.
-5. Check finite, positive prices and investigate outliers in product/unit context.
-6. Validate dimension keys, unmatched references and join multiplication.
-7. Assess non-weekly and nutritional data independently before linking datasets.
-8. Define reproducible validation checks and retain an audit trail of rejected or transformed records.
-
-### Proposed validation framework
-
-The academic BI checks provide a starting point: business-key integrity, duplicate detection, fact-grain integrity and referential integrity. They must be adapted to the discovered model. In particular, the supplied classroom rule grouping only non-key dimension attributes is not equivalent to full-row duplicate detection: different entities may legitimately share descriptive attributes.
-
-Additional checks can cover semantic missingness, types, value ranges, temporal completeness, join cardinality and raw-to-clean reconciliation. A future `dq_results` log could hold the table, rule, metric, status, details and execution time. This framework has been discussed but not implemented; thresholds and failure severity remain to be defined. A historical case dataset should be assessed against its expected period, not marked stale merely because it is old today.
-
-### Decisions and learning so far
-
-| Question | Evidence or constraint | Decision |
+| Table | Grain / key | Treatment and boundary |
 | --- | --- | --- |
-| Where should heavy queries run? | Large weekly source and the assignment's local-processing guidance | Extract all seven tables and assess locally |
-| Should repeated location IDs be deleted? | No full-row duplicates; one `(shop, id)` collision | Preserve the records and investigate their meaning |
-| Is the weekly grain a valid unique key? | Repeats concentrated in three weeks | Retain it as a working hypothesis; do not enforce it yet |
-| Are there 93 weeks? | Approximate profile versus exact count of 104 | Use exact checks for coverage and key decisions |
-| Should all tables form one star schema? | Sampling, different scopes and untested joins | Keep the model provisional |
-| Should advanced ML or BI be added now? | No finalized business question or clean model | Keep these optional and prioritize correctness |
+| Products | One row per source `daltix_id` | Trim text, normalize assessed missing tokens, preserve country/language and nullable attributes. Snapshot uniqueness does not imply a universal identifier. |
+| Locations | Working `(shop, id)` | Preserve the known collision and mark both records unsafe for fallback. Drop the all-null `type` from this Silver projection; retain it in Raw. Keep nullable geography and explicit country. |
+| Prices | `(daltix_id, shop, location, downloaded_on)` | Preserve all observations. Keep null `promo_price`; the adopted convention is no active promotion in this source. Present values below regular price indicate promotion. |
+| Nutritionals | `(daltix_id, shop, country, download_date, nutrient_name)` after canonical selection | Keep the existing completeness-first policy, long representation and conflict lineage. Retain portion and units; do not invent conversions. |
+| Weekly products | One row per source `daltix_id` | Primary values win. Fallback fills missing attributes only when retailer, country and language agree. Literal disagreements are flagged. |
+| Weekly locations | `(shop, location)` | Use only unambiguous fallback keys without contradictory known geography. Fill coordinates only as a pair when both primary values are missing. |
+| Weekly prices | Working `(daltix_id, shop, location, week)` | Remove only identical six-field observations. Preserve alternative price pairs and explicit ambiguity. Keep price extremes pending contextual evidence. |
 
-## Run tomorrow
+Silver retains natural keys. `price_observation_id` is a deterministic fingerprint of an observation, not a replacement for its business grain or a dimensional surrogate key. Gold keys and measures are future work.
 
-1. Open this repository in VS Code and select its `.venv` Python kernel.
-2. Open `notebooks/01_source_discovery.ipynb`.
-3. Keep both `RUN_SOURCE_DISCOVERY = False` and `RUN_EXTRACTION = False`.
-4. Restart the kernel and run the notebook. With the existing raw files, this is a local-only run: no database credentials, source queries or PostgreSQL extension installation are needed.
-5. Continue with promotion logic. Add new analytical cells before the final cleanup, or rerun the local DuckDB initialization after the connection has been closed.
+<details>
+<summary><strong>Null handling and source-specific promotion semantics</strong></summary>
 
-The manifest check precedes profiling. Missing or changed raw files stop execution with an explicit error. Existing analytical outputs are historical evidence; rerunning refreshes them locally.
+Text cleaning recognizes trimmed, case-insensitive `""`, `null`, `none`, `n/a` and `#n/a`. SQL null stays null. `NAN` and `NA` are preserved because a blanket rule can destroy legitimate values. The helper accepts explicit field-specific tokens when future evidence justifies them.
 
-### Reproduce the environment
+Missing descriptive fields, postcodes and coordinate pairs do not justify deleting an entity. No price, description or nutritional value is invented to achieve completeness. Invalid numeric text must fail rather than silently becoming a meaningful null; numeric NaN/infinity fail numeric validity checks.
+
+The weekly and non-weekly promotional fields have different source conventions. Weekly `price_promo = price` means no observed discount under the adopted rule; lower values indicate a discount; higher values are retained and flagged. Non-weekly `promo_price = NULL` is preserved and interpreted according to that source's adopted convention. Frequency and value relationships support the interpretation but do not independently prove business semantics.
+
+</details>
+
+<details>
+<summary><strong>Nutritional selection, portion basis and unresolved unit issues</strong></summary>
+
+The existing selection order is preserved: numeric nutrient count, nutrient count, populated unit count, then serialized-payload hash and language, with source-row order as the final tie-break. Selected outputs carry the payload hash and completeness scores. Raw retains all competing versions.
+
+Of the 100 conflicting grains, nine are decided by completeness and **91 require the deterministic tie-break**. The legacy `nutrition_resolution_rule` and `resolved_*` metric names remain for compatibility; they describe canonicalization, not proven truth. `nutrition_selection_reason` distinguishes hash ties explicitly.
+
+The Raw payloads include **1,034,946 observations per 100 g** and **61,596 per 100 ml**. Silver carries the selected version's portion basis so its values remain interpretable. There are **70 nutrient rows across nine products with unexpected units**. They remain flagged for review; automatic unit conversion would invent an unsupported interpretation.
+
+A download date is collection time, not automatically an effective-from date. Nutritionals from late 2020/early 2021 must not silently enrich earlier price history as if those attributes were known then.
+
+</details>
+
+<details>
+<summary><strong>Enrichment safety and why zero filled attributes is a valid result</strong></summary>
+
+Compatible product matches number **9,406**, yet fill zero missing attributes. The logic is retained because future compatible snapshots may contain useful fallback values. Primary values are never overwritten.
+
+Literal product disagreements number 9,356 names, 103 brands, 4,221 descriptions and 5,513 categories; **7,651 name disagreements are case-only**. These are monitoring signals, not automatic evidence of different products.
+
+Weekly locations have zero safe fallback matches. The known non-weekly collision is excluded; other candidates must not contradict existing postcode/coordinates. The coordinate tolerance is a technical equality tolerance, not geographic identity proof. Matching identifiers and context do not establish historical compatibility.
+
+</details>
+
+## Data quality and publication
+
+| Mechanism | Purpose | Examples |
+| --- | --- | --- |
+| **Hard contracts** | Stop publication when a structural guarantee fails | Required schema and fields, exact keys where justified, safe joins, finite numeric values and row reconciliation |
+| **DQ flags** | Identify exceptions retained in the output | Location-key collision, weekly price ambiguity, attribute disagreements and unusual nutrient units |
+| **Monitoring metrics** | Quantify gaps for interpretation | Missing descriptions, partial product coverage and enrichment outcomes |
+
+Unexpected columns require review before projection or deduplication. Date fields keep the assessed daily type, and timestamps are not silently truncated.
+
+<details>
+<summary><strong>Publication safeguards, manifest contents and recovery boundary</strong></summary>
+
+The orchestrator:
+
+
+1. Validates the Raw manifest and records a source-code fingerprint.
+2. Builds all outputs in a private staging directory under `data/clean`.
+3. Runs table and cross-table contracts before publication.
+4. Confirms that Raw and source code did not change during the run.
+5. Publishes the validated files, with the manifest last; ordinary publication failures roll back.
+
+The Silver manifest records input hashes/provenance, runtime versions, output schemas/hashes, counts, metrics and timing. The notebook checks the actual artifacts against this manifest before presenting results.
+
+This is a single-user checkpoint workflow. Individual file replacements are atomic; the seven-file set is not a database transaction. A lock prevents cooperating readers/writers from accepting partial publication. After an abrupt process or machine failure, inspect the retained lock/staging/backup before recovery; do not blindly remove them and assume a valid checkpoint.
+
+</details>
+
+## Why discovery was deliberately extensive
+
+**Understand manually, then automate deliberately.** Exploration established grain, missingness, temporal coverage, duplicates and relationship safety before those observations became rules. Large row counts and approximate profiles alone were insufficient.
+
+The discovery notebook retains the questions and evidence; the Silver notebook explains the decisions now implemented. Some early proposals were refined: nutritional conflicts now have an explicit deterministic selection policy, and the non-weekly promotion convention is documented. Earlier Raw counts are not silently replaced by post-cleaning counts.
+
+## Technology and storage choices
+
+| Tool | Workload and reason |
+| --- | --- |
+| Parquet | Typed columnar storage, compression and selective reads. Raw and Silver are separate artifacts. |
+| DuckDB | Relational aggregation, exact grain checks, windows, JSON normalization and large Parquet-to-Parquet transformations. |
+| Polars | Cleaning and enrichment of smaller references, typed expressions and validation. |
+| Python | Small reusable table functions, orchestration, errors, tests and provenance. |
+
+The 19.2M weekly price rows and 9.5M long nutrient rows are not collected into Python dataframes. The nutritional source is a smaller, roughly 1.1M-row JSON dataset loaded for source preparation, then processed by DuckDB. Expensive nutritional ranking is materialized once per run; weekly contracts inspect the written candidate instead of rebuilding its transformation.
+
+There is no claim that one engine is universally fastest. A verified local full run took approximately **105 seconds**, including integrity, provenance and validation checks. The earlier reported run was about 161 seconds under a different validation workload; this is not a controlled performance benchmark.
+
+## Run locally
+
+The project uses Python **3.14** and `uv.lock`. Runtime dependencies are limited to DuckDB, Polars, PyArrow, Psycopg and python-dotenv; the development group supplies the notebook kernel, pytest and Ruff. Unused ML/visualization packages are not required for this phase.
+
+1. Restore the locked environment:
+
+   ```sh
+   uv sync --locked
+   ```
+
+2. Build and validate all seven Silver files:
+
+   ```sh
+   uv run python -m daltix_case.pipelines.silver_pipeline
+   ```
+
+3. Open `notebooks/02_silver_pipeline.ipynb`, select the project kernel, leave `RUN_PIPELINE = False`, then restart and run all cells. This reads the already-published `silver_*.parquet` files and checks the manifest.
+
+The optional `RUN_PIPELINE = True` setting delegates a rebuild to the same official function. The normal review workflow above keeps execution in the pipeline and inspection in the notebook.
+
+Paths default to the local checkout. An isolated output can be selected explicitly:
 
 ```sh
-uv sync --locked --group dev
+uv run python -m daltix_case.pipelines.silver_pipeline --raw-dir data/raw --silver-dir data/clean/review
 ```
 
-The package is installed from `src`, so its helper is available in the project kernel. A clone includes code, documentation and saved analytical outputs, but not the private data. Local execution requires the seven raw Parquet files; otherwise authorized source access and an explicit first extraction are required.
+A clone includes code, documentation and notebook evidence, but no private source data. Local reproduction requires all seven Raw Parquet files and their manifest. Credentials are unnecessary for normal Raw-to-Silver runs.
 
-### Optional source discovery
+<details>
+<summary><strong>First extraction, source access and the limits of the Raw manifest</strong></summary>
 
-Copy `.env.example` to `.env` and fill the six source variables through the authorized credential channel. Set `RUN_SOURCE_DISCOVERY = True` only when refreshing source metadata. Psycopg uses read-only transactions, connection/query timeouts and context managers that close connections on success or failure. Restore `False` for normal analysis.
+For first source access, copy `.env.example` to `.env` and populate authorized credentials privately. In Notebook 01, `RUN_SOURCE_DISCOVERY` and `RUN_EXTRACTION` default to `False`. Extraction is explicit, read-only, refuses an existing destination and validates COPY counts against Parquet metadata. A later refresh requires a separate snapshot; Raw is not overwritten.
 
-### Optional first extraction
+The historical Raw manifest is an integrity baseline. Original extraction time and source-side reconciliation remain unknown. Future helper-driven exports record provenance and COPY-to-Parquet reconciliation, but do not promise a transactionally consistent seven-table snapshot. PostgreSQL storage including indexes is not directly comparable to Parquet size as a compression benchmark.
 
-Set `RUN_EXTRACTION = True` only for an unused raw destination. The helper checks all seven file paths and `manifest.json` before connecting and refuses existing destinations. It uses a short-lived DuckDB PostgreSQL attachment in read-only mode, with a safely built connection string and quoted schema/table names.
+</details>
 
-Exports first go to temporary staging on the same filesystem. The helper compares each COPY result's row count with local Parquet metadata before publishing. Destination creation refuses overwrite, and the manifest is published last. An export failure does not leave a successful manifest. Restore `False` after an intentional extraction.
-
-This is a lightweight single-user workflow, not a transactionally atomic multi-table ingestion service. Do not run simultaneous extractions into the same directory. Abrupt machine/process failure during publication may leave an incomplete destination to investigate; normal execution does not silently replace it.
-
-### What the manifest proves
-
-`data/raw/manifest.json` records table/file names, row counts, byte sizes, schemas, SHA-256 fingerprints and provenance. It is local and ignored by Git.
-
-For the existing historical files, the manifest is a baseline recorded during checkpoint preparation: original extraction time and original source row reconciliation remain explicitly unknown. They cannot be reconstructed reliably from filesystem modification times.
-
-Future helper-driven exports record extraction start/end, source schema and COPY-to-Parquet row reconciliation without an extra remote COUNT scan. Neither mode establishes transactionally consistent source contents across seven tables or certifies business correctness. Hashes detect changes relative to the recorded local baseline.
-
-## Validation and limitations
+## Validation
 
 ```sh
 uv run ruff check src notebooks tests
@@ -229,41 +232,99 @@ uv run ruff format --check src notebooks tests
 uv run pytest -q
 ```
 
-Checkpoint verification: all eight offline tests passed, Ruff lint and formatting checks passed, and every code cell ran sequentially in a fresh Python process against the local snapshot. Credential loading and source-access helpers were explicitly blocked during that run. Exact grain, repeated-group and temporal results matched the saved conclusions. Notebook outputs were not overwritten by this verification.
+The compact test suite covers source-I/O safeguards, assessed null tokens, key/schema/type checks, safe enrichment, exact versus conflicting duplicates, nutritional selection/portion/units, a tiny seven-table pipeline, manifest validation and publication failure/rollback. It runs without credentials or private datasets.
 
-The focused offline tests cover disabled extraction, refusal to overwrite existing files, incomplete snapshots, manifest change detection, credentials containing special characters, read-only connection options, connection closure on errors, and successful/failed COPY row reconciliation with a database stub. They do not contact the source database.
+Full-snapshot verification additionally compares the previous and revised Silver values, allowing only the documented name/brand corrections and added provenance fields. Notebook 02 is executed in a fresh process against the completed checkpoint. Notebook 01 retains its analytical code and outputs; editorial changes clarify the historical/current boundary.
 
-### Review items resolved in this checkpoint
+<details>
+<summary><strong>Verified corrections and the filename migration</strong></summary>
 
-| Original issue | Current implementation |
+A global missing-token rule incorrectly treated the genuine brand `NAN` as missing and failed to recognize `#N/A`. The corrected rule restores two brands in `products` and 17 in `weekly_products`; one placeholder name becomes null in each. These are intentional value changes, not a claim of byte-identical outputs.
+
+| Missingness metric | Previous | Corrected |
+| --- | ---: | ---: |
+| Products: name | 41 | 42 |
+| Products: brand | 1,281 | 1,279 |
+| Weekly products: name | 8 | 9 |
+| Weekly products: brand | 9,606 | 9,589 |
+
+Nutritional outputs additionally retain portion basis, selected payload hash, completeness scores, a precise selection reason and an unexpected-unit flag. Weekly locations additionally expose the context-mismatch flag. Existing selected nutritional values, price observations, grains and conflict policies are preserved.
+
+Every published Parquet uses the `silver_` prefix. Pipeline writers, fallback reads, relationship checks, the notebook and the manifest use the same names. The initial naming migration preserved **identical SHA-256 content hashes**; a subsequent full rebuild verifies that the pipeline produces these names directly, with unchanged metrics and schemas.
+
+</details>
+
+## Discovery evidence
+
+The complete analytical cells and saved Raw outputs remain in [Notebook 01](notebooks/01_source_discovery.ipynb). Exact checks supersede `SUMMARIZE.approx_unique` for keys and calendar coverage. Dataset-wide dates do not establish complete histories per product/location.
+
+<details>
+<summary>Raw findings and relationship coverage</summary>
+
+- **Weekly prices:** 19,218,071 rows, 102,069 products, 375,742 product/shop/location combinations and 18,699,187 weekly keys. Calendar: 2019-01-07 to 2020-12-28, 104/104 weeks. Earlier approximate counts of 108,487 IDs and 93 weeks are not constraints.
+- Repeated keys occur in three weeks: 2019-05-27 (126,619), 2019-12-30 (188,398) and 2020-12-28 (203,867). All repeated groups have two records: 1,037,768 affected rows. Across those groups, 142,972 price pairs are identical and 375,912 differ.
+- Raw weekly promotion relationships: 1,638,468 lower, 17,568,677 equal and 10,926 higher. Post-deduplication counts differ because the population differs.
+- Weekly regular prices range 0.009–1,538.90: 506 rows below 0.10, 38,416 above 100 and 3,378 above 500. Recurrence does not prove validity; product/pack/unit context is still needed. Weekly rows do not carry explicit currency/unit fields, so the non-weekly sample's `eur`/`su` cannot silently supply them.
+- **Weekly products:** 114,517 unique IDs. All current rows have country `be` and language `nl`; this does not mean two countries. Semantic brand missingness is 8.37%, versus 5.77% SQL-null-only profiling.
+- **Weekly locations:** 1,230 rows, 1,140 location IDs and 1,230 shop/location pairs. `shop_type` is absent in 436 records, including all 392 `idla` and 42 `plc` rows. Locality/state each miss ten values; six coordinate pairs are absent.
+- Seven coordinate pairs are shared, five within a retailer. Repeated names, shared coordinates and four postcodes outside a four-digit pattern do not independently justify merging or rejecting locations. Country context matters.
+- **Prices:** 1,198,547 rows, 116 products, 136 locations and 3,631 product/shop/location combinations. All 367 dates from 2020-02-25 to 2021-02-25 occur. Unit/currency are `su`/`eur`; regular prices range 0.297–9.779. Large row volume does not mean broad product coverage.
+- **Products:** 32,826 unique IDs; several retailers span countries and some languages. Country cannot be inferred from shop. Missingness depends on whether the check counts only SQL nulls or semantic placeholders.
+- **Locations:** 1,638 rows, 1,256 IDs and 1,637 shop/ID keys. `lld + f334d` has postcode 1470 at 50.601871, 4.4583208 and postcode 7100 at 50.452781, 4.1538596; adding country does not resolve it. Bounds are technically valid, not proof of the correct address.
+- **Nutritionals:** 1,096,542 Raw observations, 54,155 products and 1,096,442 product/shop/country/date keys. All 90 dates from 2020-11-27 to 2021-02-24 occur. The 185 distinct nutrient-key sets are not 185 fully validated typed schemas. Later validation confirms real value conflicts in the 100 repeated grains.
+
+| Raw relationship | Evidence and limitation |
 | --- | --- |
-| Undefined `weekly_prices_path` | Defined explicitly in notebook configuration. |
-| Extraction coupled to every analysis run | Two switches default to local-only mode; separate helper handles opt-in export. |
-| Existing raw files could be replaced | Preflight check, staged export and exclusive destination creation. |
-| Data/checkpoints not ignored | `.gitignore` excludes raw/clean/marts, Parquet, checkpoints, credentials and caches. |
-| Duplicate DuckDB setup | One local analytical connection; source attachments have their own bounded lifetime. |
-| Incomplete or inconsistent Markdown | Contents, seven-table conclusions, grain/coverage narrative and next-session instructions aligned. |
-| Psycopg not explicitly read-only | Read-only session default plus context-managed connections/cursors. |
-| Fragile credentials and fixed schema | Psycopg connection-string builder and escaped SQL values/identifiers; hard-coded preview removed. |
-| File size mistaken for completeness | Manifest validates local file identity and schema; future exports reconcile COPY row counts. Historical source completeness remains unknown. |
+| Weekly prices → weekly products | 88,897/102,069 products matched; 18,460,902/19,218,071 rows (96.06%). No multiplication; 25,620 weekly references unused. |
+| Weekly prices → weekly locations | 100% matching and no multiplication using shop/location; only 16 of 1,230 reference keys used. |
+| Prices → products | 20/116 products and 15.40% of rows matched; safe cardinality coexists with low coverage. |
+| Prices → locations | 100% matching and no multiplication using shop/location; location alone adds 2,253,016 rows. Only 136/1,637 reference keys used. |
+| Weekly products → nutritionals | 15,696 products matched (13.71% of weekly, 28.98% of nutritional products), producing 261,224 Raw nutritional observations. This is temporal one-to-many history, not a safe direct fact enrichment. |
 
-Analytical queries and saved analytical outputs were preserved. Stale source/setup/export outputs were cleared after their execution behavior changed. The cleanup does not claim a new remote extraction occurred.
+Matched nutritional products have mean 16.64 observations, median 19 and maximum 32; 14,145 have multiple observations. Context agreement does not choose a historical version. Raw relationship counts include records later deduplicated in Silver.
 
-### Still open
+</details>
 
-- Explain the three exceptional weeks before choosing any deduplication or conflicting-price rule.
-- Establish promotion semantics, validity, units and contextual outliers.
-- Check per-product/location temporal coverage, dimension keys and join behavior.
-- Bring supplementary calendar/location checks into maintained analytical validation where useful.
-- Define the business question and population behind each metric; decide whether nutritional or non-weekly data adds value.
-- Implement clean data, marts and accepted data-quality expectations after those decisions.
+## Project structure
 
-## Interpretation notes
+```text
+README.md                       Case study, results and reproduction
+docs/assets/                    Company logo and architecture diagram
+notebooks/
+  01_source_discovery.ipynb       Raw evidence and relationship exploration
+  02_silver_pipeline.ipynb        Silver decisions, metrics and interpretation
+src/daltix_case/
+  source_io.py                   Guarded extraction and Raw manifest
+  quality/
+    checks.py                    Small shared validation helpers
+    cross_table.py               Relationship contracts
+  silver/
+    products.py, locations.py, prices.py, nutritionals.py
+    weekly_products.py, weekly_locations.py, weekly_prices.py
+  pipelines/silver_pipeline.py   Official end-to-end entry point
+tests/                          Offline source, rule and pipeline tests
+data/raw/                       Private immutable snapshot; ignored
+data/clean/                     Generated Silver checkpoint; ignored
+data/marts/                     Reserved for Gold; ignored
+sql/                            Reserved; no independent SQL pipeline
+```
 
-Approximate cardinalities do not establish keys, similar counts do not prove matching sets, and SQL null percentages do not capture semantic missingness. Unique descriptive attributes are not a universal requirement for dimensions.
+`.env`, environments, source/generated datasets, notebook checkpoints and caches are ignored. Saved notebook outputs provide review evidence; they are checked for credentials before publication. Transformation code has one implementation in `src`.
 
-PostgreSQL's reported 4,605 MB for weekly prices included 2,168 MB of indexes; comparing that total with roughly 619 MiB of Parquet is not a pure compression ratio.
+## Next phase
 
-No benchmark establishes one engine as universally fastest. Keep the current SQL approach, measure slow queries and only then consider caching reused results or benchmarking native DuckDB tables for repeated joins. Ruff validates Python hygiene, not analytical meaning.
+The next phase will translate business questions into explicit fact and dimension grains. Weekly prices are the leading core fact candidate; additional non-weekly facts or nutritional dimensions will be introduced only where the analytical requirements justify them.
 
-Technical references: [DuckDB SUMMARIZE](https://duckdb.org/docs/current/guides/meta/summarize), [DuckDB workload tuning](https://duckdb.org/docs/current/guides/performance/how_to_tune_workloads), [DuckDB file-format trade-offs](https://www.duckdb.org/docs/current/guides/performance/file_formats), [Psycopg connection-string builder](https://www.psycopg.org/psycopg3/docs/api/conninfo.html).
+Gold design must address ambiguous weekly observations, unmatched product references, historical product/nutritional attributes, portion and unit compatibility, and product/pack comparability. These are explicit modelling decisions still to be made.
+
+There are no established sales quantities, margins or shopper-response measures. Price observations alone cannot establish sales uplift, demand elasticity or promotion effectiveness. Surrogate keys belong to the future dimensional model, not to a workaround that hides Silver business-key collisions.
+
+
+## Checkpoint history
+
+| Checkpoint | Scope |
+| --- | --- |
+| **01** · `f117982` | Initial source discovery checkpoint |
+| **02** · current | Completed discovery and relationships; reusable Silver pipeline; contracts and tests; validated Silver notebook; documented decisions and architecture |
+
+Source data, credentials and generated Parquet files are excluded from version control.
